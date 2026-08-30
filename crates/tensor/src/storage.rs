@@ -17,9 +17,9 @@ impl<T> Storage<T> {
             .map(|(x, y)| op(x, y))
             .collect()
     }
-    
-    pub fn data(&self) -> &[T]{
-        &self.data 
+
+    pub fn data(&self) -> &[T] {
+        &self.data
     }
 }
 
