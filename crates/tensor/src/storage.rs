@@ -1,89 +1,90 @@
 use std::ops::{Add, Div, Mul, Neg, Sub};
+use std::sync::Arc;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Storage<T> {
-    data: Vec<T>,
+    data: Arc<[T]>,
 }
 
 impl<T> Storage<T> {
+    #[inline]
     pub fn new(data: Vec<T>) -> Self {
+        Self { data: data.into() }
+    }
+
+    #[inline]
+    pub fn from_arc(data: Arc<[T]>) -> Self {
         Self { data }
     }
 
-    fn binop(self, other: Self, op: fn(T, T) -> T) -> Vec<T> {
-        self.data
-            .into_iter()
-            .zip(other.data)
-            .map(|(x, y)| op(x, y))
-            .collect()
-    }
-
-    pub fn data(&self) -> &[T] {
+    #[inline]
+    pub fn as_slice(&self) -> &[T] {
         &self.data
     }
-}
 
-impl<T> Add for Storage<T>
-where
-    T: Add<Output = T>,
-{
-    type Output = Storage<T>;
+    #[inline]
+    pub fn data(&self) -> &[T] {
+        self.as_slice()
+    }
 
-    fn add(self, other: Self) -> Self::Output {
-        Self {
-            data: self.binop(other, T::add),
-        }
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
+    #[inline]
+    fn zip_map(self, other: Self, op: impl Fn(T, T) -> T) -> Self
+    where
+        T: Copy,
+    {
+        assert_eq!(self.len(), other.len(), "storage size mismatch");
+        Self::new(
+            self.data
+                .iter()
+                .copied()
+                .zip(other.data.iter().copied())
+                .map(|(x, y)| op(x, y))
+                .collect(),
+        )
     }
 }
 
-impl<T> Sub for Storage<T>
-where
-    T: Sub<Output = T>,
-{
-    type Output = Storage<T>;
-
-    fn sub(self, other: Self) -> Self::Output {
-        Self {
-            data: self.binop(other, T::sub),
-        }
+impl<T: Copy + Add<Output = T>> Add for Storage<T> {
+    type Output = Self;
+    fn add(self, other: Self) -> Self {
+        self.zip_map(other, T::add)
     }
 }
 
-impl<T> Mul for Storage<T>
-where
-    T: Mul<Output = T>,
-{
-    type Output = Storage<T>;
-
-    fn mul(self, other: Self) -> Self::Output {
-        Self {
-            data: self.binop(other, T::mul),
-        }
+impl<T: Copy + Sub<Output = T>> Sub for Storage<T> {
+    type Output = Self;
+    fn sub(self, other: Self) -> Self {
+        self.zip_map(other, T::sub)
     }
 }
 
-impl<T> Div for Storage<T>
-where
-    T: Div<Output = T>,
-{
-    type Output = Storage<T>;
-
-    fn div(self, other: Self) -> Self::Output {
-        Self {
-            data: self.binop(other, T::div),
-        }
+impl<T: Copy + Mul<Output = T>> Mul for Storage<T> {
+    type Output = Self;
+    fn mul(self, other: Self) -> Self {
+        self.zip_map(other, T::mul)
     }
 }
 
-impl<T> Neg for Storage<T>
-where
-    T: Neg<Output = T>,
-{
-    type Output = Storage<T>;
+impl<T: Copy + Div<Output = T>> Div for Storage<T> {
+    type Output = Self;
+    fn div(self, other: Self) -> Self {
+        self.zip_map(other, T::div)
+    }
+}
 
-    fn neg(self) -> Self::Output {
-        Self {
-            data: self.data.into_iter().map(|x| -x).collect(),
-        }
+impl<T: Copy + Neg<Output = T>> Neg for Storage<T> {
+    type Output = Self;
+    fn neg(self) -> Self {
+        Self::new(self.data.iter().copied().map(T::neg).collect())
     }
 }
