@@ -52,19 +52,27 @@ where
         self.graph_id
     }
 
+    /// Returns the number of recorded leaf and operation nodes.
     pub fn len(&self) -> usize {
         self.nodes.len()
     }
 
+    /// Returns true if the tape contains no nodes.
     pub fn is_empty(&self) -> bool {
         self.nodes.is_empty()
     }
 
+    /// Removes all graph nodes, values, and gradient buffers.
+    ///
+    /// This invalidates tensors attached to the old graph.
     pub fn clear(&mut self) {
         self.nodes.clear();
         self.graph_id = next_graph_id();
     }
 
+    /// Registers a differentiable leaf and returns its node identifier.
+    ///
+    /// Most callers should use Tensor::new instead.
     pub fn register_leaf(&mut self, data: Storage<T>) -> usize {
         let id = self.nodes.len();
         self.nodes.push(TapeNode {
@@ -95,7 +103,14 @@ where
         id
     }
 
-    /// Backpropagates a gradient of one through every element of the root.
+        /// Backpropagates a gradient of one through every element of the root.
+    ///
+    /// For a non-scalar root this differentiates the sum of its elements.
+    /// Existing gradient buffers are reset and reused.
+    ///
+    /// # Panics
+    ///
+    /// Panics if root is not a node in this tape.
     pub fn backward(&mut self, root: usize) {
         let len = self
             .nodes
@@ -110,6 +125,10 @@ where
     }
 
     /// Backpropagates an explicit vector-Jacobian seed.
+    ///
+    /// # Panics
+    ///
+    /// Panics if root is invalid or seed has the wrong length.
     pub fn backward_with_grad(&mut self, root: usize, seed: &[T]) {
         let root_len = self
             .nodes
@@ -179,10 +198,18 @@ where
             .get_or_insert_with(|| vec![T::default(); node.value.len()])
     }
 
+    /// Returns a node's gradient if one has been computed.
+    ///
+    /// Invalid identifiers and nodes not involved in backward return None.
     pub fn grad(&self, node: usize) -> Option<&[T]> {
         self.nodes.get(node)?.grad.as_deref()
     }
 
+    /// Returns a node's computed gradient.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the node is invalid or has no computed gradient.
     pub fn get_grad(&self, node: usize) -> &[T] {
         self.grad(node)
             .expect("gradient unavailable; call backward first")

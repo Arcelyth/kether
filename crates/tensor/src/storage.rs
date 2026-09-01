@@ -1,37 +1,44 @@
 use std::ops::{Add, Div, Mul, Neg, Sub};
 use std::sync::Arc;
 
+/// Cheaply cloneable, immutable tensor storage.
 #[derive(Debug, Clone)]
 pub struct Storage<T> {
     data: Arc<[T]>,
 }
 
 impl<T> Storage<T> {
+    /// Moves a vector into shared immutable storage.
     #[inline]
     pub fn new(data: Vec<T>) -> Self {
         Self { data: data.into() }
     }
 
+    /// Wraps an existing shared slice without copying its elements.
     #[inline]
     pub fn from_arc(data: Arc<[T]>) -> Self {
         Self { data }
     }
 
+    /// Borrows all stored elements.
     #[inline]
     pub fn as_slice(&self) -> &[T] {
         &self.data
     }
 
+    /// Borrows all stored elements. This is an alias for as_slice.
     #[inline]
     pub fn data(&self) -> &[T] {
         self.as_slice()
     }
 
+    /// Returns the number of stored elements.
     #[inline]
     pub fn len(&self) -> usize {
         self.data.len()
     }
 
+    /// Returns true when no elements are stored.
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()

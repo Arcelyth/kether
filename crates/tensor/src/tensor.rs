@@ -3,6 +3,9 @@ use crate::storage::Storage;
 use crate::tape::Tape;
 use crate::operators::Operator;
 
+/// An immutable, fixed-rank tensor optionally attached to an autograd tape.
+///
+/// Cloning shares element storage. Gradients live in the associated Tape.
 #[derive(Debug, Clone)]
 pub struct Tensor<T, const DIM: usize> {
     data: Storage<T>,
@@ -15,6 +18,12 @@ impl<T, const DIM: usize> Tensor<T, DIM>
 where
     T: Copy + Default + From<u8> + 'static,
 {
+
+    /// Creates a tensor and optionally registers it as a differentiable leaf.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the data length differs from the shape's element count.
     pub fn new(data: &[T], shape: [usize; DIM], requires_grad: bool, tape: &mut Tape<T>) -> Self {
         let shape = Shape::new(shape);
         assert_eq!(data.len(), shape.numel(), "data size does not match shape");
@@ -29,26 +38,36 @@ where
         }
     }
 
+    /// Borrows elements in contiguous row-major order.
     pub fn data(&self) -> &[T] {
         self.data.as_slice()
     }
 
+    /// Returns the tensor's shape.
     pub const fn shape(&self) -> Shape<DIM> {
         self.shape
     }
 
+    /// Returns whether the tensor participates in automatic differentiation.
     pub const fn requires_grad(&self) -> bool {
         self.node_id.is_some()
     }
 
+    /// Returns the tape-local node identifier, if differentiable.
     pub const fn node_id(&self) -> Option<usize> {
         self.node_id
     }
 
+    /// Borrows this tensor's gradient, if it has been computed.
     pub fn grad<'a>(&self, tape: &'a Tape<T>) -> Option<&'a [T]> {
         self.node_id.and_then(|id| tape.grad(id))
     }
 
+    /// Backpropagates an all-ones seed from this tensor.
+    ///
+    /// # Panics
+    ///
+    /// Panics if this is a constant or belongs to another or cleared tape.
     pub fn backward(&self, tape: &mut Tape<T>) {
         assert_eq!(
             self.graph_id,
@@ -58,6 +77,11 @@ where
         tape.backward(self.node_id.expect("tensor does not require gradients"));
     }
 
+    /// Backpropagates an explicit vector-Jacobian seed.
+    ///
+    /// # Panics
+    ///
+    /// Panics for an invalid tape association or a seed of the wrong length.
     pub fn backward_with_grad(&self, tape: &mut Tape<T>, seed: &[T]) {
         assert_eq!(
             self.graph_id,
@@ -73,6 +97,13 @@ where
 
 /// Applies a same-shape operation. Constant inputs are supported and are not
 /// assigned graph nodes; their values are retained only when needed by backward.
+///
+/// The output is recorded only if at least one input requires gradients.
+///
+/// # Panics
+///
+/// Panics for empty inputs, shape mismatches, mixed tape generations, or an
+/// operator output with the wrong number of elements.
 pub fn apply<T, const DIM: usize, O>(
     op: O,
     inputs: &[&Tensor<T, DIM>],
@@ -182,4 +213,5 @@ mod tests {
         tape.clear();
         x.backward(&mut tape);
     }
+
 }
