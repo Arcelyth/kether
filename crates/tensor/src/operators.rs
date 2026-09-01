@@ -1,6 +1,7 @@
 use std::ops::{Add, Mul};
 
 use crate::storage::Storage;
+use crate::register_op;
 
 /// An operation recorded by the reverse-mode autograd tape.
 ///
@@ -45,6 +46,7 @@ impl<T: Copy + Add<Output = T> + Send + Sync> Operator<T> for AddOp {
     }
 }
 
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct MulOp;
 
@@ -84,3 +86,8 @@ where
         }
     }
 }
+
+register_op!(
+    mul(rhs) => MulOp,
+    add(rhs) => AddOp,
+);

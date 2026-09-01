@@ -125,15 +125,14 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::operators::{AddOp, MulOp};
 
     #[test]
     fn graph_and_shared_subgraph_gradients_are_correct() {
         let mut tape = Tape::<f32>::new();
         let x = Tensor::new(&[2.0, 3.0], [2], true, &mut tape);
         let y = Tensor::new(&[4.0, 5.0], [2], true, &mut tape);
-        let xy = apply(MulOp, &[&x, &y], &mut tape);
-        let z = apply(AddOp, &[&x, &xy], &mut tape);
+        let xy = x.mul(&y, &mut tape);
+        let z = x.add(&xy, &mut tape);
 
         assert_eq!(z.data(), &[10.0, 18.0]);
         z.backward(&mut tape);
@@ -146,7 +145,7 @@ mod tests {
         let mut tape = Tape::<f32>::new();
         let x = Tensor::new(&[2.0, 3.0], [2], true, &mut tape);
         let c = Tensor::new(&[4.0, 5.0], [2], false, &mut tape);
-        let y = apply(MulOp, &[&x, &c], &mut tape);
+        let y = x.mul(&c, &mut tape);
         y.backward_with_grad(&mut tape, &[2.0, 3.0]);
         assert_eq!(x.grad(&tape), Some(&[8.0, 15.0][..]));
         y.backward(&mut tape);
@@ -158,7 +157,7 @@ mod tests {
     fn backward_only_visits_root_ancestors() {
         let mut tape = Tape::<f32>::new();
         let x = Tensor::new(&[2.0], [1], true, &mut tape);
-        let y = apply(MulOp, &[&x, &x], &mut tape);
+        let y = x.mul(&x, &mut tape);
         let unrelated = Tensor::new(&[7.0], [1], true, &mut tape);
         y.backward(&mut tape);
         assert_eq!(x.grad(&tape), Some(&[4.0][..]));
@@ -172,7 +171,7 @@ mod tests {
         let mut second = Tape::<f32>::new();
         let x = Tensor::new(&[2.0], [1], true, &mut first);
         let y = Tensor::new(&[3.0], [1], true, &mut second);
-        let _ = apply(AddOp, &[&x, &y], &mut first);
+        let _ = x.add(&y, &mut first);
     }
 
     #[test]

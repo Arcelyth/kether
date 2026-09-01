@@ -3,6 +3,7 @@ pub mod shape;
 pub mod storage;
 pub mod tape;
 pub mod tensor;
+pub mod macros;
 
 pub use operators::{Operator, AddOp, MulOp};
 pub use shape::Shape;
