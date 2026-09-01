@@ -44,6 +44,7 @@ impl<T> Tape<T>
 where
     T: Copy + Default + From<u8> + 'static,
 {
+    /// Creates an empty tape.
     pub fn new() -> Self {
         Self::default()
     }

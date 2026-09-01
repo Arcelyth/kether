@@ -1,15 +1,20 @@
 use std::ops::{Add, Mul};
 
-use crate::storage::Storage;
 use crate::register_op;
+use crate::storage::Storage;
 
 /// An operation recorded by the reverse-mode autograd tape.
-///
-/// backward_input is called once per differentiable input and must add its
-/// contribution to grad_input. This avoids temporary nested gradient vectors.
 pub trait Operator<T>: std::fmt::Debug + Send + Sync {
+    /// Returns a stable, human-readable operation name.
     fn name(&self) -> &'static str;
+
+    /// Computes the operation output from immutable input buffers.
+    ///
+    /// The returned vector must have the element count expected by apply.
     fn forward(&self, inputs: &[Storage<T>]) -> Vec<T>;
+
+    /// backward_input is called once per differentiable input and must add its
+    /// contribution to grad_input. This avoids temporary nested gradient vectors.
     fn backward_input(
         &self,
         input: usize,
@@ -19,6 +24,7 @@ pub trait Operator<T>: std::fmt::Debug + Send + Sync {
     );
 }
 
+/// Addition operator.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AddOp;
 
@@ -46,7 +52,7 @@ impl<T: Copy + Add<Output = T> + Send + Sync> Operator<T> for AddOp {
     }
 }
 
-
+/// Multiplication operator.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct MulOp;
 
@@ -88,6 +94,8 @@ where
 }
 
 register_op!(
+    ///
     mul(rhs) => MulOp,
+    ///
     add(rhs) => AddOp,
 );
