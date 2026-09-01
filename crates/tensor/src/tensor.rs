@@ -214,4 +214,15 @@ mod tests {
         x.backward(&mut tape);
     }
 
+    #[test]
+    fn relu_forward_and_backward_are_correct() {
+        let mut tape = Tape::<f32>::new();
+        let x = Tensor::new(&[-2.0, 0.0, 3.0], [3], true, &mut tape);
+
+        let y = x.relu(&mut tape);
+
+        assert_eq!(y.data(), &[0.0, 0.0, 3.0]);
+        y.backward(&mut tape);
+        assert_eq!(x.grad(&tape), Some(&[0.0, 0.0, 1.0][..]));
+    }
 }

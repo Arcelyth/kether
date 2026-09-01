@@ -213,6 +213,46 @@ where
     }
 }
 
+/// ReLU operator.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ReLUOp;
+
+impl<T> Operator<T> for ReLUOp
+where
+    T: Copy + Default + PartialOrd + Add<Output = T> + Send + Sync,
+{
+    fn name(&self) -> &'static str {
+        "ReLU"
+    }
+
+    fn forward(&self, inputs: &[Storage<T>]) -> Vec<T> {
+        assert_eq!(inputs.len(), 1, "ReLU expects one input");
+        let zero = T::default();
+        inputs[0]
+            .as_slice()
+            .iter()
+            .map(|&x| if x > zero { x } else { zero })
+            .collect()
+    }
+
+    fn backward_input(
+        &self,
+        input: usize,
+        grad_output: &[T],
+        inputs: &[Storage<T>],
+        grad: &mut [T],
+    ) {
+        assert_eq!(input, 0, "ReLU has only one input");
+        let zero = T::default();
+        for ((target, &upstream), &x) in grad.iter_mut().zip(grad_output).zip(inputs[0].as_slice())
+        {
+            if x > zero {
+                *target = *target + upstream;
+            }
+        }
+    }
+}
+
 register_op!(
     ///
     mul(rhs) => MulOp,
@@ -224,4 +264,6 @@ register_op!(
     div(rhs) => DivOp,
     ///
     neg() => NegOp,
+    ///
+    relu() => ReLUOp,
 );
